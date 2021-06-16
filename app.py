@@ -1,84 +1,79 @@
-import base64
-import io
 import dash
-from dash.dependencies import Input, Output, State
+import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
+from dash.dependencies import Input, Output, State
+from dash_html_components.P import P
 import dash_table
-import pandas as pd
-import pandas_bokeh
 
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
 
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+# the style arguments for the sidebar. We use position:fixed and a fixed width
+SIDEBAR_STYLE = {
+    "position": "fixed",
+    "top": 0,
+    "left": 0,
+    "bottom": 0,
+    "width": "16rem",
+    "padding": "2rem 1rem",
+    "background-color": "#f8f9fa",
+}
 
-app.layout = html.Div([
-    dcc.Upload(
-        id='datatable-upload',
-        children=html.Div([
-            'Selecion de archivo ',
-            html.A('Select Files')
-        ]),
-        style={
-            'width': '100%', 'height': '60px', 'lineHeight': '60px',
-            'borderWidth': '1px', 'borderStyle': 'dashed',
-            'borderRadius': '5px', 'textAlign': 'center', 'margin': '10px'
-        },
-    ),
-    dash_table.DataTable(id='datatable-upload-container'),
-    dcc.Graph(id='datatable-upload-graph',
-             
-              
-            
-            )
-    
-])
+# the styles for the main content position it to the right of the sidebar and
+# add some padding.
+CONTENT_STYLE = {
+    "margin-left": "18rem",
+    "margin-right": "2rem",
+    "padding": "2rem 1rem",
+}
 
+sidebar = html.Div(
+    [
+        html.H2("Sidebar", className="display-4"),
+        html.Hr(),
+        html.P(
+            "A simple sidebar layout with navigation links", className="lead"
+        ),
+        dbc.Nav(
+            [
+                dbc.NavLink("Home", href="/", active="exact"),
+                dbc.NavLink("Page 1", href="/page-1", active="exact"),
+                dbc.NavLink("Page 2", href="/page-2", active="exact"),
+            ],
+            vertical=True,
+            pills=True,
+        ),
+    ],
+    style=SIDEBAR_STYLE,
+)
 
+content = html.Div(id="page-content", style=CONTENT_STYLE)
 
-def parse_contents(contents, filename):
-    content_type, content_string = contents.split(',')
-    decoded = base64.b64decode(content_string)
-    if 'csv' in filename:
-        # Assume that the user uploaded a CSV file
-        return pd.read_csv(
-            io.StringIO(decoded.decode('utf-8')))
-    elif 'xls' in filename:
-        # Assume that the user uploaded an excel file
-        return pd.read_excel(io.BytesIO(decoded))
-
+app.layout = html.Div([dcc.Location(id="url"), sidebar, content])
 
 @app.callback(Output('datatable-upload-container', 'data'),
               Output('datatable-upload-container', 'columns'),
               Input('datatable-upload', 'contents'),
               State('datatable-upload', 'filename'))
-def update_output(contents, filename):
-    if contents is None:
-        return [{}], []
-    df = parse_contents(contents, filename)
-    return df.to_dict('records'), [{"name": i, "id": i} for i in df.columns]
 
 
-@app.callback(Output('datatable-upload-graph', 'figure'),
-              Input('datatable-upload-container', 'data'))
-def display_graph(rows):
-    df = pd.DataFrame(rows)
+@app.callback(Output("page-content", "children"), [Input("url", "pathname")])
+def render_page_content(pathname):
+    if pathname == "/":
+        return html.P("This is the content of page ptivvipals. Yay!")
+    elif pathname == "/page-1":
+        return html.P("This is the content of page 1. Yay!")
+    elif pathname == "/page-2":
+        return html.P("Oh cool, this is page 2!")
+    # If the user tries to reach a different page, return a 404 message
+    return dbc.Jumbotron(
+        [
+            html.H1("404: Not found", className="text-danger"),
+            html.Hr(),
+            html.P(f"The pathname {pathname} was not recognised..."),
+        ]
+    )
 
-    if (df.empty or len(df.columns) < 1):
-        return {
-            'data': [{
-                'x': [],
-                'y': [],
-                'type': 'bar'
-            }]
-        }
-    return {
-        'data': [{
-            'x': df[df.columns[0]],
-            'y': df[df.columns[1]],
-            'type': 'bar'
-        }]
-    }
 
-if __name__ == '__main__':
-    app.run_server(port=3005,debug=True)
+if __name__ == "__main__":
+    app.run_server(port=8888)
